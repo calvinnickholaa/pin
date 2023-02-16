@@ -5,10 +5,8 @@ namespace App\Http\Controllers;
 use Carbon\Carbon;
 use App\Models\Ncr;
 use App\Models\Fppp;
-use App\Models\User;
 use App\Models\Kontak;
 use App\Models\ItemNcr;
-use App\Models\WorkOrder;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Routing\Controller;
@@ -42,22 +40,21 @@ class NcrController extends Controller
     {
         $fppps = Fppp::get();
 
-        $fppps = $fppps->filter(function ($fppp) {
-            return ($fppp->wo->count() > 0) ? $fppp->wo->filter(function($wo) {
-                return $wo->no_surat_jalan != null;
-            }) : false ;
-        });
+        // $fppps = $fppps->filter(function ($fppp) {
+        //     return $fppp->wo->count() > 0;
+        // });
 
         $array = [];
 
         foreach ($fppps as $fppp) {
             $nama_mitra = $fppp->Quotation->Aplikator->aplikator;
             $nomor_fppp = $fppp->fppp_no;
-            $nama_proyek = $fppp->Quotation->DataQuotation->nama_proyek;
-            $alamat = $fppp->Quotation->DataQuotation->alamat_proyek;
+            $nama_proyek = $fppp->Quotation->nama_proyek;
+            // $alamat = $fppp->wo[0]->alamat;
             $items = [];
             foreach ($fppp->Quotation->Item as $item) {
                 $items[] = [
+                    "id" => $item->id,
                     "nama_item" => $item->kode_tipe,
                     "kode_item" => $item->kode_item,
                     "daun" => $item->daun,
@@ -73,7 +70,7 @@ class NcrController extends Controller
                 "nama_mitra" => $nama_mitra,
                 "nomor_fppp" => $nomor_fppp,
                 "nama_proyek" => $nama_proyek,
-                "alamat" => $alamat,
+                "alamat" => "Alamat",
                 "item" => $items,
             ];
         }
@@ -103,14 +100,14 @@ class NcrController extends Controller
     public function store(Request $request)
     {
         $validateData = $request->validate([
-            'bukti_kecacatan' => 'file|max:2024'
+            'bukti_kecacatan' => 'mimes:pdf|max:2024',
+            "item_id" => "required",
+            "kontak_id" => "required"
         ]);
 
         if ($request->file('bukti_kecacatan')) {
             $validateData['bukti_kecacatan'] = $request->file('bukti_kecacatan')->store('bukti');
         }
-
-        $barang = "";
 
         $ncrs = Ncr::create([
             "nama_mitra" => $request->nama_mitra,
@@ -138,11 +135,14 @@ class NcrController extends Controller
 
         foreach ($request->item_id as $item) {
             $itemNcr = ItemNcr::create([
-                "kode_item" => explode("-", $item)[0],
-                "nama_item" => explode("-", $item)[1],
+                "kode_item" => explode("_", $item)[0],
+                "nama_item" => explode("_", $item)[1],
+                "daun" => explode("_", $item)[2],
+                "lebar" => explode("_", $item)[3],
+                "tinggi" => explode("_", $item)[4],
+                "warna" => explode("_", $item)[5],
                 "ncr_id" => $ncrs->id
             ]);
-            $barang .= $itemNcr->kode_item;
         }
 
 
@@ -177,22 +177,21 @@ class NcrController extends Controller
         })) {
             $fppps = Fppp::get();
 
-            $fppps = $fppps->filter(function ($fppp) {
-                return ($fppp->wo->count() > 0) ? $fppp->wo->filter(function($wo) {
-                    return $wo->no_surat_jalan != null;
-                }) : false ;
-            });
+            // $fppps = $fppps->filter(function ($fppp) {
+            //     return $fppp->wo->count() > 0;
+            // });
 
             $array = [];
 
             foreach ($fppps as $fppp) {
                 $nama_mitra = $fppp->Quotation->Aplikator->aplikator;
                 $nomor_fppp = $fppp->fppp_no;
-                $nama_proyek = $fppp->Quotation->DataQuotation->nama_proyek;
-                $alamat = $fppp->Quotation->DataQuotation->alamat_proyek;
+                $nama_proyek = $fppp->Quotation->nama_proyek;
+                // $alamat = $fppp->wo[0]->alamat;
                 $items = [];
                 foreach ($fppp->Quotation->Item as $item) {
                     $items[] = [
+                        "id" => $item->id,
                         "nama_item" => $item->kode_tipe,
                         "kode_item" => $item->kode_item,
                         "daun" => $item->daun,
@@ -208,7 +207,7 @@ class NcrController extends Controller
                     "nama_mitra" => $nama_mitra,
                     "nomor_fppp" => $nomor_fppp,
                     "nama_proyek" => $nama_proyek,
-                    "alamat" => $alamat,
+                    "alamat" => "Semarang",
                     "item" => $items,
                 ];
             }
@@ -235,24 +234,19 @@ class NcrController extends Controller
      */
     public function update(Request $request, Ncr $ncr)
     {
-        $validateData = $request->validate([
-            'bukti_kecacatan' => 'file|max:2024'
-        ]);
-
         if ($request->file('bukti_kecacatan')) {
+            $validateData = $request->validate([
+                'bukti_kecacatan' => 'mimes:pdf|max:2024',
+                "item_id" => "required",
+                "kontak_id" => "required"
+            ]);
             $validateData['bukti_kecacatan'] = $request->file('bukti_kecacatan')->store('bukti');
         } else {
             $validateData['bukti_kecacatan'] = $ncr->bukti_kecacatan;
         }
 
         $barang = "";
-        if (Auth::user()->hasRole("QC")) {
-            $ncr->update([
-                "analisa" => $request->analisa ?? $ncr->analisa,
-                "solusi" => $request->solusi ?? $ncr->solusi,
-                "status" => ($request->analisa == null && $request->solusi == null) ? "open" : "closed",
-            ]);
-        } else {
+        if (Auth::user()->hasRole("Admin")) {
             $ncr->update([
                 "nama_mitra" => $request->nama_mitra ?? $ncr->nama_mitra,
                 "nama_proyek" => $request->nama_proyek ?? $ncr->nama_proyek,
@@ -266,47 +260,116 @@ class NcrController extends Controller
                 "bukti_kecacatan" => $validateData['bukti_kecacatan'] ?? $ncr->bukti_kecacatan,
                 "jenis_ketidaksesuaian" => $request->jenis_ketidaksesuaian ?? $ncr->jenis_ketidaksesuaian,
                 "alamat_pengiriman" => $request->alamat_pengiriman ?? $ncr->alamat_pengiriman,
-                "kontak_id" => $request->kontak_id ?? $ncr->kontak_id,
+                "analisa" => $request->analisa ?? $ncr->analisa,
+                "solusi" => $request->solusi ?? $ncr->solusi,
                 "status" => ($request->analisa == null && $request->solusi == null) ? "open" : "closed",
             ]);
-        }
+            ItemNcr::where('ncr_id', $ncr->id)->delete();
 
-        ItemNcr::where('ncr_id', $ncr->id)->delete();
+            DB::table("kontak_ncr")->where('ncr_id', $ncr->id)->delete();
 
-        DB::table("kontak_ncr")->where('ncr_id', $ncr->id)->delete();
+            foreach ($request->kontak_id as $kontak) {
+                DB::table("kontak_ncr")->insert([
+                    "kontak_id" => $kontak,
+                    "ncr_id" => $ncr->id,
+                    "validated" => 0
+                ]);
+            }
 
-        foreach ($request->kontak_id as $kontak) {
-            DB::table("kontak_ncr")->insert([
-                "kontak_id" => $kontak,
-                "ncr_id" => $ncr->id,
-                "validated" => 0
+            foreach ($request->item_id as $item) {
+                $itemNcr = ItemNcr::create([
+                    "kode_item" => explode("_", $item)[0],
+                    "nama_item" => explode("_", $item)[1],
+                    "daun" => explode("_", $item)[2],
+                    "lebar" => explode("_", $item)[3],
+                    "tinggi" => explode("_", $item)[4],
+                    "warna" => explode("_", $item)[5],
+                    "ncr_id" => $ncr->id
+                ]);
+            }
+
+            $itemNcr = ItemNcr::where("ncr_id", $ncr->id)->get();
+            foreach ($itemNcr as $item) {
+                $barang .= $item->kode_item . " - " . $item->nama_item . ", ";
+            }
+
+            if ($ncr->status == "closed") {
+                Http::post("https://app.whacenter.com/api/send", [
+                    "device_id" => "22b7043bacda4e176706e03c46018cbe",
+                    "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
+                    "message" => "NCR : " . $ncr->nomor_ncr . "\nAda NCR baru yang perlu Anda validasi, berikut data singkatnya:\n\nNomor NCR: " . $request->nomor_ncr . "\nNomor FPPP: " . $request->nomor_fppp . "\nTanggal NCR: " . $request->tanggal_ncr . "\nNama Mitra: " . $request->nama_mitra . "\nNama Proyek: " . $request->nama_proyek . "\nItem: " . $barang . "\nDeskripsi: " . $request->deskripsi . "\nAnalisa: " . $request->analisa . "\nSolusi: " . $request->solusi . "\nPelapor: " . $request->pelapor . "\nJenis Ketidaksesuaian: " . $request->jenis_ketidaksesuaian . "\nAlamat: " . $request->alamat_pengiriman . "\n\nSilahkan klik link berikut untuk lebih detailnya: http://crm.alluresystem.site/validate?ncr=" . base64_encode($ncr->id) . "&nomor=" . base64_encode(Kontak::find($request->kontak_id[0])->nomor_whatsapp),
+                ]);
+                Http::post("https://app.whacenter.com/api/send", [
+                    "device_id" => "22b7043bacda4e176706e03c46018cbe",
+                    "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
+                    "message" => "",
+                    "file" => "http://crm.alluresystem.site/storage/" . $ncr->bukti_kecacatan
+                ]);
+            }
+        } else if (Auth::user()->hasRole("QC")) {
+            $ncr->update([
+                "analisa" => $request->analisa ?? $ncr->analisa,
+                "solusi" => $request->solusi ?? $ncr->solusi,
+                "status" => ($request->analisa == null && $request->solusi == null) ? "open" : "closed",
             ]);
-        }
 
-        foreach ($request->item_id as $item) {
-            $itemNcr = ItemNcr::create([
-                "kode_item" => explode("-", $item)[0],
-                "nama_item" => explode("-", $item)[1],
-                "ncr_id" => $ncr->id
+            $itemNcr = ItemNcr::where("ncr_id", $ncr->id)->get();
+            foreach ($itemNcr as $item) {
+                $barang .= $item->kode_item . " - " . $item->nama_item . ", ";
+            }
+
+            if ($ncr->status == "closed") {
+                Http::post("https://app.whacenter.com/api/send", [
+                    "device_id" => "22b7043bacda4e176706e03c46018cbe",
+                    "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
+                    "message" => "NCR : " . $ncr->nomor_ncr . "\nAda NCR baru yang perlu Anda validasi, berikut data singkatnya:\n\nNomor NCR: " . $request->nomor_ncr . "\nNomor FPPP: " . $request->nomor_fppp . "\nTanggal NCR: " . $request->tanggal_ncr . "\nNama Mitra: " . $request->nama_mitra . "\nNama Proyek: " . $request->nama_proyek . "\nItem: " . $barang . "\nDeskripsi: " . $request->deskripsi . "\nAnalisa: " . $request->analisa . "\nSolusi: " . $request->solusi . "\nPelapor: " . $request->pelapor . "\nJenis Ketidaksesuaian: " . $request->jenis_ketidaksesuaian . "\nAlamat: " . $request->alamat_pengiriman . "\n\nSilahkan klik link berikut untuk lebih detailnya: http://crm.alluresystem.site/validate?ncr=" . base64_encode($ncr->id) . "&nomor=" . base64_encode(Kontak::find($request->kontak_id[0])->nomor_whatsapp),
+                ]);
+                Http::post("https://app.whacenter.com/api/send", [
+                    "device_id" => "22b7043bacda4e176706e03c46018cbe",
+                    "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
+                    "message" => "",
+                    "file" => "http://crm.alluresystem.site/storage/" . $ncr->bukti_kecacatan
+                ]);
+            }
+        } else if (Auth::user()->hasRole("Sales")) {
+            $ncr->update([
+                "nama_mitra" => $request->nama_mitra ?? $ncr->nama_mitra,
+                "nama_proyek" => $request->nama_proyek ?? $ncr->nama_proyek,
+                "nomor_ncr" => $request->nomor_ncr ?? $ncr->nomor_ncr,
+                "nomor_fppp" => $request->nomor_fppp ?? $ncr->nomor_fppp,
+                "tanggal_ncr" => $request->tanggal_ncr ?? $ncr->tanggal_ncr,
+                "deskripsi" => $request->deskripsi ?? $ncr->deskripsi,
+                "analisa" => $request->analisa ?? $ncr->analisa,
+                "solusi" => $request->solusi ?? $ncr->solusi,
+                "pelapor" => $request->pelapor ?? $ncr->pelapor,
+                "bukti_kecacatan" => $validateData['bukti_kecacatan'] ?? $ncr->bukti_kecacatan,
+                "jenis_ketidaksesuaian" => $request->jenis_ketidaksesuaian ?? $ncr->jenis_ketidaksesuaian,
+                "alamat_pengiriman" => $request->alamat_pengiriman ?? $ncr->alamat_pengiriman,
             ]);
-            $barang .= $itemNcr->kode_item . ', ';
+            ItemNcr::where('ncr_id', $ncr->id)->delete();
+
+            DB::table("kontak_ncr")->where('ncr_id', $ncr->id)->delete();
+
+            foreach ($request->kontak_id as $kontak) {
+                DB::table("kontak_ncr")->insert([
+                    "kontak_id" => $kontak,
+                    "ncr_id" => $ncr->id,
+                    "validated" => 0
+                ]);
+            }
+
+            foreach ($request->item_id as $item) {
+                $itemNcr = ItemNcr::create([
+                    "kode_item" => explode("_", $item)[0],
+                    "nama_item" => explode("_", $item)[1],
+                    "daun" => explode("_", $item)[2],
+                    "lebar" => explode("_", $item)[3],
+                    "tinggi" => explode("_", $item)[4],
+                    "warna" => explode("_", $item)[5],
+                    "ncr_id" => $ncr->id
+                ]);
+            }
         }
-
-        if ($ncr->status == "closed") {
-
-            Http::get("https://app.whacenter.com/api/send", [
-                "device_id" => "0c3716536ed62ab28dca153271d515b8",
-                "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
-                "message" => "NCR : " . $ncr->nomor_ncr . "\nAda NCR baru yang perlu Anda validasi, berikut data singkatnya:\n\nNomor NCR: " . $request->nomor_ncr . "\nNomor FPPP: " . $request->nomor_fppp . "\nTanggal NCR: " . $request->tanggal_ncr . "\nNama Mitra: " . $request->nama_mitra . "\nNama Proyek: " . $request->nama_proyek . "\nItem: " . $barang . "\nDeskripsi: " . $request->deskripsi . "\nAnalisa: " . $request->analisa . "\nSolusi: " . $request->solusi . "\nPelapor: " . $request->pelapor . "\nJenis Ketidaksesuaian: " . $request->jenis_ketidaksesuaian . "\nAlamat: " . $request->alamat_pengiriman . "\n\nSilahkan klik link berikut untuk lebih detailnya: http://crm.alluresystem.site/" . $ncr->id,
-            ]);
-            Http::get("https://app.whacenter.com/api/send", [
-                "device_id" => "0c3716536ed62ab28dca153271d515b8",
-                "number" => Kontak::find($request->kontak_id[0])->nomor_whatsapp,
-                "message" => "",
-                "file" => "http://crm.alluresystem.site/storage/" . $ncr->bukti_kecacatan
-            ]);
-        }
-
 
         return redirect("/ncr");
     }
@@ -329,10 +392,10 @@ class NcrController extends Controller
         $barang = "";
         $itemNcr = ItemNcr::where("ncr_id", $request->ncr_id)->get();
         foreach ($itemNcr as $item) {
-            $barang .= $item->kode_item . ", ";
+            $barang .= $item->kode_item . " - " . $item->nama_item . ", ";
         }
 
-        if (Kontak::withTrashed()->where("user_id", $request->user)->first()->id != DB::table("kontak_ncr")->where("id", $request->id)->first()->kontak_id) {
+        if (Kontak::withTrashed()->where("user_id", $request->user)->latest()->first()->id != DB::table("kontak_ncr")->where("id", $request->id)->first()->kontak_id) {
             return response()->json(["message" => "anda bukan user tersebut"], 403);
         } else {
             if ($request->posisi == 0 || DB::table('kontak_ncr')->where("id", $request->id - 1)->first()->validated == 1) {
@@ -342,13 +405,13 @@ class NcrController extends Controller
                 if ($request->posisi != DB::table("kontak_ncr")->where("ncr_id", $request->ncr_id)->count() - 1) {
                     $kontak_ncr = DB::table('kontak_ncr')->where("id", $request->id + 1)->first();
                     $ncr = Ncr::find($kontak_ncr->ncr_id);
-                    Http::get("https://app.whacenter.com/api/send", [
-                        "device_id" => "0c3716536ed62ab28dca153271d515b8",
+                    Http::post("https://app.whacenter.com/api/send", [
+                        "device_id" => "22b7043bacda4e176706e03c46018cbe",
                         "number" => Kontak::find($kontak_ncr->kontak_id)->nomor_whatsapp,
-                        "message" => "Ada NCR baru yang perlu Anda validasi, berikut data singkatnya:\n\nNomor NCR: " . $ncr->nomor_ncr . "\nNomor FPPP: " . $ncr->nomor_fppp . "\nTanggal NCR: " . $ncr->tanggal_ncr . "\nNama Mitra: " . $ncr->nama_mitra . "\nNama Proyek: " . $ncr->nama_proyek . "\nItem: " . $barang . "\nDeskripsi: " . $ncr->deskripsi . "\nAnalisa: " . $ncr->analisa . "\nSolusi: " . $ncr->solusi . "\nPelapor: " . $ncr->pelapor . "\nJenis Ketidaksesuaian: " . $ncr->jenis_ketidaksesuaian . "\nAlamat: " . $ncr->alamat_pengiriman . "\n\nSilahkan klik link berikut untuk lebih detailnya: http://crm.alluresystem.site/" . $ncr->id,
+                        "message" => "Ada NCR baru yang perlu Anda validasi, berikut data singkatnya:\n\nNomor NCR: " . $ncr->nomor_ncr . "\nNomor FPPP: " . $ncr->nomor_fppp . "\nTanggal NCR: " . $ncr->tanggal_ncr . "\nNama Mitra: " . $ncr->nama_mitra . "\nNama Proyek: " . $ncr->nama_proyek . "\nItem: " . $barang . "\nDeskripsi: " . $ncr->deskripsi . "\nAnalisa: " . $ncr->analisa . "\nSolusi: " . $ncr->solusi . "\nPelapor: " . $ncr->pelapor . "\nJenis Ketidaksesuaian: " . $ncr->jenis_ketidaksesuaian . "\nAlamat: " . $ncr->alamat_pengiriman . "\n\nSilahkan klik link berikut untuk lebih detailnya: http://crm.alluresystem.site/validate?ncr=" . base64_encode($ncr->id) . "&nomor=" . base64_encode(Kontak::find($kontak_ncr->kontak_id)->nomor_whatsapp),
                     ]);
-                    Http::get("https://app.whacenter.com/api/send", [
-                        "device_id" => "0c3716536ed62ab28dca153271d515b8",
+                    Http::post("https://app.whacenter.com/api/send", [
+                        "device_id" => "22b7043bacda4e176706e03c46018cbe",
                         "number" => Kontak::find($kontak_ncr->kontak_id)->nomor_whatsapp,
                         "message" => "",
                         "file" => "http://crm.alluresystem.site/storage/" . $ncr->bukti_kecacatan
@@ -378,5 +441,20 @@ class NcrController extends Controller
             "tanggal" => $request->bulan . "-" . $request->tahun
         ]);
         return $pdf->stream('report_ncr_' . $request->bulan . '_' . $request->tahun . '.pdf');
+    }
+
+    public function validate(Request $request)
+    {
+        if ($request->ncr && $request->nomor) {
+            $user = Kontak::where("nomor_whatsapp", base64_decode($request->nomor))->first();
+            if ($user) {
+                Auth::loginUsingId($user->user->id);
+                return redirect("/ncr/" . base64_decode($request->ncr));
+            } else {
+                return redirect("http://erp.alluresystem.site/");
+            }
+        } else {
+            return redirect("http://erp.alluresystem.site/");
+        }
     }
 }

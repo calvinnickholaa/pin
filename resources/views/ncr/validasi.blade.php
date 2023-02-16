@@ -60,7 +60,9 @@
                         </div>
                         <div class="form-group col-lg-8">
                             <label>Item</label>
-                            <input type="text" class="form-control date-picker" value="@foreach ($ncr->ItemNcr as $keys => $item) {{ $item->nama_item . ($keys < $ncr->ItemNcr->count() - 1 ? ', ' : "")}} @endforeach" disabled>
+                            <input type="text" class="form-control date-picker"
+                                value="@foreach ($ncr->ItemNcr as $keys => $item) {{ $item->kode_item . '-' . $item->nama_item . ($keys < $ncr->ItemNcr->count() - 1 ? ', ' : '') }} @endforeach"
+                                disabled>
                         </div>
                         <div class="form-group col-12">
                             <label>Deskripsi</label>
@@ -148,8 +150,7 @@
                                                 onClick="validasi(this)"
                                                 @if ($validator->pivot->validated == 1) checked disabled @endif>
                                             <label class="custom-control-label"
-                                                for="{{ $validator->pivot->id }}-{{ $nomor }}">Check this
-                                                custom checkbox</label>
+                                                for="{{ $validator->pivot->id }}-{{ $nomor }}">{{ $validator->pivot->validated == 1 ? 'validated' : 'validate' }}</label>
                                         </div>
                                     </td>
                                 </tr>
@@ -175,34 +176,39 @@
             let id = checkbox.id.split("-")[0];
             let posisi = checkbox.id.split("-")[1];
             let checked = checkbox.checked;
-            $(document).ready(function() {
-                $.ajax({
-                    url: "/ncr/validasi/" + id,
-                    method: 'POST',
-                    data: {
-                        posisi: posisi,
-                        id: id,
-                        checked: 1,
-                        ncr_id: "{{ $ncr->id }}",
-                        user: "{{ auth()->user()->id }}",
-                        _token: "{{ csrf_token() }}"
-                    },
-                    statusCode: {
-                        200: function(data) {
-                            alert('Validasi Berhasil');
-                            checkbox.setAttribute("disabled", true);
+            let warning = window.confirm("apakah anda yaking memvalidasi NCR ini ?");
+            if (warning) {
+                $(document).ready(function() {
+                    $.ajax({
+                        url: "/ncr/validasi/" + id,
+                        method: 'POST',
+                        data: {
+                            posisi: posisi,
+                            id: id,
+                            checked: 1,
+                            ncr_id: "{{ $ncr->id }}",
+                            user: "{{ auth()->user()->id }}",
+                            _token: "{{ csrf_token() }}"
                         },
-                        403: function(data) {
-                            alert(data.responseJSON.message);
-                            checkbox.checked = false;
-                        },
-                        406: function(data) {
-                            alert(data.responseJSON.message);
-                            checkbox.checked = false;
+                        statusCode: {
+                            200: function(data) {
+                                alert('Validasi Berhasil');
+                                checkbox.setAttribute("disabled", true);
+                            },
+                            403: function(data) {
+                                alert(data.responseJSON.message);
+                                checkbox.checked = false;
+                            },
+                            406: function(data) {
+                                alert(data.responseJSON.message);
+                                checkbox.checked = false;
+                            }
                         }
-                    }
+                    });
                 });
-            });
+            } else {
+                checkbox.checked = false;
+            }
         }
     </script>
 @endpush

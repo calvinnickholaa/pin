@@ -1,11 +1,9 @@
 <?php
 
 use App\Models\Fppp;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\NcrController;
 use App\Http\Controllers\MemoController;
-use App\Http\Controllers\RoleController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\KontakController;
 use App\Http\Controllers\DashboardController;
@@ -22,7 +20,10 @@ use App\Http\Controllers\DashboardController;
 */
 
 Route::middleware("auth")->group(function () {
+
     Route::get('/', [DashboardController::class, "index"]);
+
+    Route::post("/ncr/validasi/{ncr}", [NcrController::class, "validasi"]);
 
     Route::get('/ncr', [NcrController::class, "index"]);
 
@@ -49,9 +50,9 @@ Route::middleware("auth")->group(function () {
     Route::put("/kontak/{kontak}", [KontakController::class, "update"])->middleware("permission:edit-kontak");
 
     Route::delete("/kontak/{kontak}", [KontakController::class, "destroy"])->middleware("permission:delete-kontak");
-    
+
     Route::get("/memo", [MemoController::class, "index"]);
-    
+
     Route::get("/memo/{ncr}/create", [MemoController::class, "create"])->middleware("permission:add-memo");
 
     Route::get("/memo/{ncr}/edit", [MemoController::class, "edit"])->middleware("permission:edit-memo");
@@ -62,18 +63,14 @@ Route::middleware("auth")->group(function () {
 
     Route::post("/memo/{ncr}", [MemoController::class, "store"])->middleware("permission:add-memo");
 
-    Route::post("/ncr/validasi/{ncr}", [NcrController::class, "validasi"]);
-
     Route::post("/ncr/report", [NcrController::class, "report"]);
 
     Route::get("/memo/{ncr}", [MemoController::class, "show"]);
-    
+
     Route::get('/memo/{ncr}/cetak', [MemoController::class, 'createPDF']);
-
-    Route::get("/role", [RoleController::class, "index"])->middleware("role:Admin");
-
-    Route::post("/role/{user}", [RoleController::class, "update"])->middleware("role:Admin");
 });
+
+Route::get("/validate", [NcrController::class, "validate"]);
 
 Route::get("/login", [LoginController::class, "index"])->name("login");
 

@@ -95,8 +95,10 @@
                         <th class="table-plus">Item</th>
                         <th class="table-plus">Warna</th>
                         <th class="table-plus">Bukaan</th>
+                        <th class="table-plus">Daun</th>
+                        <th class="table-plus">Jumlah</th>
+                        <th class="table-plus">Panjang</th>
                         <th class="table-plus">Lebar</th>
-                        <th class="table-plus">Tinggi</th>
                         <th class="table-plus">Charge</th>
                         <th class="table-plus">Return</th>
                     </tr>
@@ -107,6 +109,8 @@
                         <td>{{$item->kode_item}}-{{$item->nama_item}}</td>
                         <td>{{$item->warna}}</td>
                         <td>{{$item->bukaan}}</td>
+                        <td>{{$item->daun}}</td>
+                        <td>{{$item->jumlah}}</td>
                         <td>{{$item->lebar}}</td>
                         <td>{{$item->tinggi}}</td>
                         <td>{{$item->charge}}</td>
@@ -125,11 +129,7 @@
 @push('script')
 <script>
     let data_item = {
-        nomor_memo: {
-            {
-                $ncr - > nomor_memo
-            }
-        },
+        nomor_memo: {{$ncr -> nomor_memo}},
         alamat_pengiriman: "{{$ncr->alamat_pengiriman}}",
         deadline_pengambilan: '{{$ncr->deadline_pengambilan->format("Y-m-d")}}',
         tanggal_memo: '{{$ncr->tanggal_memo->format("Y-m-d")}}',
@@ -156,11 +156,7 @@
         } else {
             $(document).ready(function() {
                 $.ajax({
-                    url: "/memo/" + {
-                        {
-                            $ncr - > id
-                        }
-                    },
+                    url: "/memo/" + {{$ncr -> id}},
                     type: "PUT",
                     data: {
                         _token: "{{ csrf_token() }}",

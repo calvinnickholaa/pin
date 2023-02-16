@@ -16,29 +16,24 @@
                         <i class="micon bi bi-house"></i> Home
                     </a>
                 </li>
-                <li>
-                    <a href="/ncr" class="dropdown-toggle no-arrow {{ $slot == 'NCR' ? 'active' : '' }}">
-                        <i class="micon bi bi-archive"></i> NCR
-                    </a>
-                </li>
-                <li>
-                    <a href="/kontak" class="dropdown-toggle no-arrow {{ $slot == 'Kontak' ? 'active' : '' }}">
-                        <i class="micon bi bi-people"></i> Kontak
-                    </a>
-                </li>
-                <li>
-                    <a href="/memo" class="dropdown-toggle no-arrow {{ $slot == 'Memo' ? 'active' : '' }}">
-                        <i class="micon bi bi-card-heading"></i> Memo
-                    </a>
-                </li>
-                @role('Admin')
+                @hasanyrole('Admin|Sales|QC')
                     <li>
-                        <a href="/role" class="dropdown-toggle no-arrow {{ $slot == 'Role' ? 'active' : '' }}">
-                            <i class="micon dw dw-add-user"></i> Role
+                        <a href="/kontak" class="dropdown-toggle no-arrow {{ $slot == 'Kontak' ? 'active' : '' }}">
+                            <i class="micon bi bi-people"></i> Kontak
                         </a>
                     </li>
-                @endrole
-            </ul>
+                    <li>
+                        <a href="/ncr" class="dropdown-toggle no-arrow {{ $slot == 'NCR' ? 'active' : '' }}">
+                            <i class="micon bi bi-archive"></i> NCR
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/memo" class="dropdown-toggle no-arrow {{ $slot == 'Memo' ? 'active' : '' }}">
+                            <i class="micon bi bi-card-heading"></i> Memo
+                        </a>
+                    </li>
+                    @endhasanyrole
+                </ul>
+            </div>
         </div>
     </div>
-</div>
